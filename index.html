@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dysport to Botox/Xeomin Conversion Calculator</title>
+<style>
+  /* ============================================================
+     Design tokens
+     ============================================================ */
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-soft: #f5f8fd;
+    --text: #1c2735;
+    --text-muted: #617085;
+    --accent: #1a6ee0;
+    --accent-strong: #114f9e;
+    --accent-soft: #e8f0fc;
+    --border: #dfe6f0;
+    --warn: #b3541e;
+    --warn-soft: #fdf1e7;
+    --shadow: 0 2px 14px rgba(24, 52, 92, 0.08);
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Ensure the hidden attribute always wins over class display rules
+     (fixes results not appearing on some mobile browsers). */
+  [hidden] { display: none !important; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+  }
+
+  /* ============================================================
+     Header
+     ============================================================ */
+  .app-header {
+    text-align: center;
+    margin-bottom: 1.75rem;
+  }
+
+  .brand-logo {
+    display: block;
+    margin: 0 auto 1rem;
+    max-width: 220px;
+    height: auto;
+  }
+
+  .app-header h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--accent-strong);
+  }
+
+  .app-header p.subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-top: 0.35rem;
+    max-width: 34rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Potency conversion badge */
+  .potency-badge {
+    display: inline-block;
+    margin-top: 0.9rem;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  /* ============================================================
+     Cards
+     ============================================================ */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+  }
+
+  .card h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin-bottom: 1.1rem;
+  }
+
+  .input-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* ============================================================
+     Inputs
+     ============================================================ */
+  .field { margin-bottom: 1rem; }
+  .field:last-of-type { margin-bottom: 0; }
+
+  .field label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  .field input[type="number"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-soft);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 0.6rem 0.9rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .field input[type="number"]:focus { border-color: var(--accent); }
+
+  /* Fixed (non-editable) settings rows */
+  .fixed-settings { list-style: none; }
+
+  .fixed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .fixed-row dt {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .fixed-row dd {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .fixed-row dd small {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Auto-updating info blocks inside cards */
+  .live-readout {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-top: 1.1rem;
+    text-align: center;
+  }
+
+  .live-readout .readout-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .live-readout .readout-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--accent-strong);
+    font-variant-numeric: tabular-nums;
+    margin-top: 0.15rem;
+  }
+
+  .live-readout .readout-value small {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* ============================================================
+     Output card
+     ============================================================ */
+  .output-card { margin-bottom: 1.25rem; }
+
+  .output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .output-item {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 0.75rem;
+    text-align: center;
+  }
+
+  .output-item.primary {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .output-item .output-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-height: 2.2em;
+  }
+
+  .output-item .output-value {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--accent-strong);
+    font-variant-numeric: tabular-nums;
+    margin-top: 0.3rem;
+    white-space: nowrap;
+  }
+
+  .output-item .output-value small {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* Placeholder state before a dose is entered */
+  .output-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 1.25rem 0;
+  }
+
+  /* ============================================================
+     Warning + clinical note
+     ============================================================ */
+  .warning-box {
+    display: none;
+    background: var(--warn-soft);
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+  }
+
+  .warning-box.visible { display: block; }
+
+  .clinical-note {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.4rem;
+    font-size: 0.88rem;
+    color: var(--accent-strong);
+    margin-bottom: 1.25rem;
+  }
+
+  .clinical-note strong {
+    display: block;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.35rem;
+  }
+
+  /* ============================================================
+     Footer disclaimer
+     ============================================================ */
+  .disclaimer {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 0 1rem;
+  }
+
+  /* Small, faint attribution line */
+  .credits {
+    margin-top: 0.9rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.55;
+    line-height: 1.6;
+  }
+
+  /* ============================================================
+     Responsive
+     ============================================================ */
+  @media (max-width: 680px) {
+    .input-cards { grid-template-columns: 1fr; }
+    .app-header h1 { font-size: 1.25rem; }
+
+    /* On phones, show the dose input first so the results card sits
+       directly beneath it — otherwise the on-screen keyboard plus the
+       fixed-settings card push the results off screen. */
+    .card-dose { order: -1; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Shown only when JavaScript is blocked (e.g. file previews in
+       Google Drive, LINE, WhatsApp, or email apps). A real browser
+       (Chrome/Safari) runs the script and never shows this. -->
+  <noscript>
+    <div style="background:#fdecea;color:#c0392b;border:1px solid #c0392b;border-radius:12px;padding:0.85rem 1rem;font-size:0.9rem;font-weight:600;margin-bottom:1.25rem;">
+      This calculator needs JavaScript, which your current app is blocking.
+      You are probably viewing this file inside a preview (Google Drive, LINE,
+      WhatsApp, email). Download the file and open it with Chrome or Safari.
+    </div>
+  </noscript>
+
+  <!-- Header -->
+  <header class="app-header">
+    <img class="brand-logo" src="data:image/png;base64,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" alt="SISL logo" width="300" height="90">
+    <h1>Dysport to Botox/Xeomin Conversion Calculator</h1>
+    <p class="subtitle">Convert desired Botox/Xeomin dose into the correct Dysport withdrawal volume and dilution.</p>
+    <span class="potency-badge">2.5 units Dysport&nbsp;=&nbsp;1 unit Botox/Xeomin</span>
+  </header>
+
+  <!-- Input cards -->
+  <div class="input-cards">
+
+    <!-- LEFT: Dysport settings (fixed, not adjustable) -->
+    <section class="card" aria-labelledby="dysportHeading">
+      <h2 id="dysportHeading">Dysport Settings (fixed)</h2>
+
+      <dl class="fixed-settings">
+        <div class="fixed-row">
+          <dt>Dysport vial size</dt>
+          <dd>500 <small>units</small></dd>
+        </div>
+        <div class="fixed-row">
+          <dt>Saline volume</dt>
+          <dd>2.0 <small>mL</small></dd>
+        </div>
+      </dl>
+
+      <div class="live-readout">
+        <span class="readout-label">Current Dysport concentration</span>
+        <span class="readout-value">250.00 <small>units/mL</small></span>
+      </div>
+    </section>
+
+    <!-- RIGHT: Desired dose (shown first on phones via CSS order) -->
+    <section class="card card-dose" aria-labelledby="doseHeading">
+      <h2 id="doseHeading">Desired Botox/Xeomin Dose</h2>
+
+      <div class="field">
+        <label for="botoxUnits">Desired Botox/Xeomin units</label>
+        <input type="number" id="botoxUnits" placeholder="Example 20" min="0" step="any" inputmode="decimal">
+      </div>
+
+      <div class="live-readout">
+        <span class="readout-label">Botox/Xeomin concentration (reference)</span>
+        <span class="readout-value">40 <small>units/mL</small></span>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Warning (invalid settings / negative saline) -->
+  <div class="warning-box" id="warningBox" role="alert"></div>
+
+  <!-- Output card -->
+  <section class="card output-card" aria-labelledby="resultsHeading" aria-live="polite">
+    <h2 id="resultsHeading">Preparation</h2>
+    <div class="output-empty" id="outputEmpty">Enter a desired Botox/Xeomin dose to see the preparation volumes.</div>
+    <div class="output-grid" id="outputGrid" hidden>
+      <div class="output-item primary">
+        <span class="output-label">Volume of Dysport to draw</span>
+        <span class="output-value" id="outDrawVolume">&ndash; <small>mL</small></span>
+      </div>
+      <div class="output-item primary">
+        <span class="output-label">Volume of saline to add</span>
+        <span class="output-value" id="outSalineAdd">&ndash; <small>mL</small></span>
+      </div>
+      <div class="output-item">
+        <span class="output-label">Final total volume</span>
+        <span class="output-value" id="outFinalVolume">&ndash; <small>mL</small></span>
+      </div>
+      <div class="output-item">
+        <span class="output-label">Total Dysport units</span>
+        <span class="output-value" id="outDysportUnits">&ndash; <small>units</small></span>
+      </div>
+      <div class="output-item">
+        <span class="output-label">Equivalent Botox/Xeomin dose</span>
+        <span class="output-value" id="outBotoxEquiv">&ndash; <small>units</small></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Clinical note -->
+  <aside class="clinical-note">
+    <strong>Clinical note</strong>
+    After dilution to 100 Dysport units/mL, the Dysport solution can be injected using the
+    same injection volume as Botox/Xeomin at 40 units/mL, while maintaining equivalent
+    clinical efficacy based on the accepted conversion ratio of
+    2.5 units Dysport&nbsp;=&nbsp;1 unit Botox/Xeomin.
+  </aside>
+
+  <!-- Disclaimer -->
+  <footer class="disclaimer">
+    This calculator is a clinical calculation aid only and does not replace professional
+    medical judgment. Verify all calculations before administration.
+    <br><span id="versionTag">v4 &middot; script not loaded</span>
+    <p class="credits">original concept: Prateep Warnnissorn<br>website: Nudtanun Warnnissorn</p>
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ==================================================================
+   Diagnostics — if any script error occurs (e.g. on an old phone
+   browser), show it on the page instead of failing silently.
+   ================================================================== */
+window.onerror = function (message) {
+  var box = document.getElementById("warningBox");
+  if (box) {
+    box.textContent = "Script error: " + message + " — please report this.";
+    box.classList.add("visible");
+  }
+  return false;
+};
+
+/* ==================================================================
+   Clinical constants
+   ================================================================== */
+const CONVERSION_RATIO = 2.5;        // units Dysport per unit Botox/Xeomin
+const TARGET_CONCENTRATION = 100;    // Dysport units/mL after final dilution
+const BOTOX_CONCENTRATION = 40;      // units/mL — reference only
+const STOCK_CONCENTRATION = 250;     // units/mL — fixed: 500 U vial + 2.0 mL saline
+
+/* ==================================================================
+   DOM references
+   ================================================================== */
+const botoxUnitsInput = document.getElementById("botoxUnits");
+
+const outDrawVolume = document.getElementById("outDrawVolume");
+const outSalineAdd = document.getElementById("outSalineAdd");
+const outFinalVolume = document.getElementById("outFinalVolume");
+const outDysportUnits = document.getElementById("outDysportUnits");
+const outBotoxEquiv = document.getElementById("outBotoxEquiv");
+
+const warningBox = document.getElementById("warningBox");
+const outputGrid = document.getElementById("outputGrid");
+const outputEmpty = document.getElementById("outputEmpty");
+
+/* ==================================================================
+   Helpers
+   ================================================================== */
+
+/** Parse an input's value; returns NaN for empty or invalid text. */
+function readNumber(input) {
+  return input.value.trim() === "" ? NaN : parseFloat(input.value);
+}
+
+/** Format a value to 2 decimal places with a unit suffix. */
+function fmt(value, unit) {
+  return `${value.toFixed(2)} <small>${unit}</small>`;
+}
+
+function showWarning(message) {
+  warningBox.textContent = message;
+  warningBox.classList.add("visible");
+}
+
+function clearWarning() {
+  warningBox.classList.remove("visible");
+}
+
+/** Hide the output grid and show the placeholder message. */
+function showEmptyState(message) {
+  outputGrid.hidden = true;
+  outputEmpty.hidden = false;
+  if (message) outputEmpty.textContent = message;
+}
+
+/* ==================================================================
+   Calculations
+   ================================================================== */
+
+/**
+ * Full preparation from a desired Botox/Xeomin dose:
+ *   Step 1: Dysport units  = Botox units × 2.5
+ *   Step 2: Volume drawn   = Dysport units / 250  (fixed stock concentration)
+ *   Step 3: Final volume   = Dysport units / 100  (target 100 units/mL)
+ *   Step 4: Saline to add  = Final volume − Volume drawn
+ */
+function calculatePreparation(botoxUnits) {
+  const dysportUnits = botoxUnits * CONVERSION_RATIO;
+  const volumeDrawn = dysportUnits / STOCK_CONCENTRATION;
+  const finalVolume = dysportUnits / TARGET_CONCENTRATION;
+  const salineToAdd = finalVolume - volumeDrawn;
+  return { dysportUnits, volumeDrawn, finalVolume, salineToAdd };
+}
+
+/* ==================================================================
+   Update cycle — runs instantly on every input change
+   ================================================================== */
+function update() {
+  const botoxUnits = readNumber(botoxUnitsInput);
+
+  if (isNaN(botoxUnits)) {
+    // Empty input: no warning, just the neutral placeholder.
+    clearWarning();
+    showEmptyState("Enter a desired Botox/Xeomin dose to see the preparation volumes.");
+    return;
+  }
+
+  if (botoxUnits <= 0) {
+    showWarning("Desired Botox/Xeomin dose must be greater than 0 units.");
+    showEmptyState("Preparation cannot be calculated for a dose of 0 or less.");
+    return;
+  }
+
+  const prep = calculatePreparation(botoxUnits);
+
+  // --- Render results ---
+  clearWarning();
+  outputEmpty.hidden = true;
+  outputGrid.hidden = false;
+
+  outDrawVolume.innerHTML = fmt(prep.volumeDrawn, "mL");
+  outSalineAdd.innerHTML = fmt(prep.salineToAdd, "mL");
+  outFinalVolume.innerHTML = fmt(prep.finalVolume, "mL");
+  outDysportUnits.innerHTML = fmt(prep.dysportUnits, "units");
+  outBotoxEquiv.innerHTML = fmt(botoxUnits, "units");
+}
+
+/* ==================================================================
+   Input wiring
+   ================================================================== */
+botoxUnitsInput.addEventListener("input", update);
+
+// Prevent negative values from sticking after a change is committed.
+botoxUnitsInput.addEventListener("change", () => {
+  const value = readNumber(botoxUnitsInput);
+  if (isFinite(value) && value < 0) {
+    botoxUnitsInput.value = "";
+    update();
+  }
+});
+
+/* Initial render with defaults (dose field intentionally empty) */
+update();
+
+/* Mark the script as loaded — if the footer still says "script not
+   loaded", JavaScript is being blocked by the viewing app. */
+document.getElementById("versionTag").textContent = "v4 · ready";
+</script>
+</body>
+</html>
